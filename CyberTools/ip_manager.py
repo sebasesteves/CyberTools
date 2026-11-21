@@ -1,55 +1,65 @@
+# ==========================================
+# CYBERTOOLS - IP MANAGER
+# Developed by Sebastião Esteves
+# GitHub: sebas
+# Version: 1.0
+# Status: In Development
+# ==========================================
+
 import os
 import ipaddress
 import subprocess
 
-  
 if not os.path.exists('ip_list.txt'):
     with open('ip_list.txt', 'w', encoding='utf-8') as arquivo:
         pass
 
+
 def adicionar_ip():
-    ip = input('Digite o IP a ser adicionado: ')
-    nome = input('Digite o nome do IP: ')
+    ip = input('Enter the IP address to add: ')
+    nome = input('Enter the device name: ')
     if not nome.strip():
-        print('O nome não pode estar vazio.')
+        print('The device name cannot be empty.')
         return
     try:
-                ipaddress.IPv4Address(ip)
+        ipaddress.IPv4Address(ip)
     except ipaddress.AddressValueError:
-                print(f'IP {ip} inválido.')
-                return
+        print(f'Invalid IP address: {ip}')
+        return
     with open('ip_list.txt', 'r', encoding='utf-8') as arquivo:
-                ips = arquivo.read().splitlines()
+        ips = arquivo.read().splitlines()
     if any(linha.split(' - ')[0] == ip for linha in ips):
-        print(f'IP {ip} já está cadastrado.')
+        print(f'IP {ip} is already registered.')
     else:
         with open('ip_list.txt', 'a', encoding='utf-8') as arquivo:
             arquivo.write(ip + ' - ' + nome + '\n')
-        print(f'IP {ip} adicionado com sucesso.')
+        print(f'IP {ip} added successfully.')
+
 
 def remover_ip():
     while True:
-        ip = input('Digite o IP a ser removido: ')
+        ip = input('Enter the IP address to remove: ')
         if ip == '0':
             break
         removido = False
         with open('ip_list.txt', 'r', encoding='utf-8') as arquivo:
-                linhas = arquivo.readlines()
+            linhas = arquivo.readlines()
         with open('ip_list.txt', 'w', encoding='utf-8') as arquivo:
             for linha in linhas:
                 if linha.strip().split(' - ')[0] != ip:
-                        arquivo.write(linha)
+                    arquivo.write(linha)
                 else:
-                            removido = True
+                    removido = True
         if removido == True:
-            print(f'IP {ip} removido com sucesso.')
+            print(f'IP {ip} removed successfully.')
             break
         else:
-            print('Erro! Ip errado ou inexistente')
-            print('Digite outra vez ou encerre digitando 0')
+            print('Error! Invalid or non-existent IP.')
+            print('Try again or enter 0 to cancel.')
+
 
 def listar_ips():
-    print('IPs cadastrados:')
+    print('Registered IP addresses:')
 
     with open('ip_list.txt', 'r', encoding='utf-8') as arquivo:
         for linha in arquivo:
@@ -57,10 +67,11 @@ def listar_ips():
                 continue
 
             ip, nome = linha.strip().split(' - ', 1)
-            print(f'Nome: {nome} | IP: {ip}')
+            print(f'Device: {nome} | IP: {ip}')
+
 
 def pesquisar_ip():
-    nome_pesquisa = input('Nome do equipamento: ').strip().lower()
+    nome_pesquisa = input('Enter the device name: ').strip().lower()
     encontrado = False
 
     with open('ip_list.txt', 'r', encoding='utf-8') as arquivo:
@@ -68,53 +79,56 @@ def pesquisar_ip():
             ip, nome = linha.strip().split(' - ', 1)
 
             if nome.strip().lower() == nome_pesquisa:
-                print(f'Nome: {nome} | IP: {ip}')
+                print(f'Device: {nome} | IP: {ip}')
                 encontrado = True
 
     if not encontrado:
-        print(f'Equipamento com nome "{nome_pesquisa}" não encontrado.')
+        print(f'Device "{nome_pesquisa}" not found.')
+
 
 def verificar_ip():
-    ip = input('Digite o IP a verificar: ')
-    
+    ip = input('Enter the IP address to check: ')
+
     try:
         ipaddress.IPv4Address(ip)
     except ipaddress.AddressValueError:
-        print('IP inválido!')
+        print('Invalid IP address!')
         return
-    
+
     resultado = subprocess.run(
-                ['ping', '-c', '1', '-W', '2', ip],
-                capture_output=True,
-                text=True
-            )
-    
+        ['ping', '-c', '1', '-W', '2', ip],
+        capture_output=True,
+        text=True
+    )
+
     if resultado.returncode == 0:
         print('IP ONLINE')
     else:
-        print('IP SEM RESPOSTA')
-    e = input('Deseja adicionar o Ip? [S/n]').strip().upper()
+        print('IP NO RESPONSE')
+
+    e = input('Would you like to add this IP? [Y/n] ').strip().upper()
     if not e:
         return
-    if e == 'S':
+    if e == 'Y':
         while True:
-            nome = input('Digite o nome do IP: ')
+            nome = input('Enter the device name: ')
             if not nome.strip():
-                print('O nome não pode estar vazio.')
+                print('The device name cannot be empty.')
             else:
                 with open('ip_list.txt', 'r', encoding='utf-8') as arquivo:
                     ips = arquivo.read().splitlines()
                 if any(linha.split(' - ')[0] == ip for linha in ips):
-                    print(f'IP {ip} já está cadastrado.')
+                    print(f'IP {ip} is already registered.')
                     break
                 else:
                     with open('ip_list.txt', 'a', encoding='utf-8') as arquivo:
                         arquivo.write(ip + ' - ' + nome + '\n')
-                    print(f'IP {ip} adicionado com sucesso.')
+                    print(f'IP {ip} added successfully.')
                     break
 
+
 def descobrir_equipamentos():
-    print('\n=== EQUIPAMENTOS DA REDE ===')
+    print('\n=== NETWORK DEVICES ===')
 
     try:
         resultado = subprocess.run(
@@ -136,11 +150,11 @@ def descobrir_equipamentos():
         endereco = resultado.stdout.split(' inet ')[1].split()[0]
         rede = ipaddress.IPv4Interface(endereco).network
 
-        print(f'Rede: {rede}')
+        print(f'Network: {rede}')
         print(f'Interface: {interface}\n')
 
         if rede.num_addresses > 256:
-            print('Rede demasiado grande para esta verificação.')
+            print('Network too large for this scan.')
             return
 
         with open('ip_list.txt', 'r', encoding='utf-8') as arquivo:
@@ -163,26 +177,37 @@ def descobrir_equipamentos():
 
             if resultado.returncode == 0:
                 encontrados += 1
-                nome = ips_guardados.get(ip, 'Desconhecido')
-                print(f'{ip} | {nome} | RESPONDE')
+                nome = ips_guardados.get(ip, 'Unknown')
+                print(f'{ip} | {nome} | RESPONDING')
 
-        print(f'\nTotal encontrado: {encontrados}')
+        print(f'\nTotal devices found: {encontrados}')
 
     except (OSError, subprocess.CalledProcessError, IndexError, ValueError):
-        print('Não foi possível identificar ou verificar a rede.')
-         
-print('0. Sair')
-print('1. Adicionar IP')
-print('2. Remover IP')
-print('3. Listar IPs')
-print('4. Pesquisar IP pelo nome')
-print('5. Verificar se um IP está online')
-print('6. Descobrir Equipamentos')
+        print('Unable to identify or scan the network.')
+
+
+print('=' * 45)
+print('               CYBERTOOLS')
+print('               IP MANAGER')
+print('=' * 45)
+print('Developed by: Sebastião Esteves')
+print('GitHub: sebas')
+print('Version: 1.0')
+print('Status: In Development')
+print('=' * 45)
+
+print('0. Exit')
+print('1. Add IP address')
+print('2. Remove IP address')
+print('3. List IP addresses')
+print('4. Search IP by device name')
+print('5. Check IP connectivity')
+print('6. Discover network devices')
 
 while True:
-    op = input('Escolha uma opção: ')
+    op = input('Choose an option: ')
     if op == '0':
-        print('Saindo...')
+        print('Exiting...')
         break
     elif op == '1':
         adicionar_ip()
@@ -197,4 +222,4 @@ while True:
     elif op == '6':
         descobrir_equipamentos()
     else:
-        print('Opção inválida. Tente novamente.')
+        print('Invalid option. Please try again.')
