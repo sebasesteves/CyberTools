@@ -12,6 +12,46 @@ This project is primarily developed and tested on **Kali Linux**.
 
 ## Features
 
+Installation & Usage
+
+1. Requirements
+
+Python 3.x
+
+Linux (Kali Linux recommended)
+
+Git (optional)
+
+No external Python packages are required.
+
+2. Clone the Repository
+
+Open a Linux terminal and run:
+
+git clone https://github.com/sebas/CyberTools.git
+cd CyberTools
+
+Alternatively, download the repository as a ZIP file and extract it.
+
+3. Run the IP Manager
+
+Navigate to the directory containing the IP Manager and run:
+
+python3 (file you want to run)
+
+5. Example — IP Manager
+
+Choose an option: 1
+Enter the IP address to add: 192.168.1.222
+Enter the device name: Lenovo
+
+IP 192.168.1.122 added successfully.
+
+Choose an option: 3
+
+Registered IP addresses:
+Device: Lenovo | IP: 192.168.1.222
+
 ### IP Manager
 - Add IP addresses with custom device names.
 - Remove saved IP addresses.
