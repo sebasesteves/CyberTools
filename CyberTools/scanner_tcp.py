@@ -1,7 +1,15 @@
+# ==========================================
+# CYBERTOOLS - TCP PORT SCANNER
+# Developed by Sebastião Esteves
+# GitHub: sebas
+# Version: 1.0
+# Status: In Development
+# ==========================================
+
 import socket
 import subprocess
 
-lserv = dict()   
+lserv = dict()
 portasta = dict()
 portas_abertas = list()
 total_portas = 65535
@@ -10,10 +18,10 @@ tamanho_barra = 20
 
 def identificar_processos():
     resultado = subprocess.run(
-    ["ss", "-tlnp"],
-    capture_output=True,
-    text=True
-)
+        ["ss", "-tlnp"],
+        capture_output=True,
+        text=True
+    )
     for linha in resultado.stdout.splitlines()[1:]:
         partes = linha.split()
 
@@ -29,11 +37,18 @@ def identificar_processos():
 
 processos = identificar_processos()
 
-print('='*30)
-print('SCANNER DE PORTAS TCP')
-print('='*30)
+print('=' * 45)
+print('           CYBERTOOLS')
+print('          TCP PORT SCANNER')
+print('=' * 45)
+print('Developed by: Sebastião Esteves')
+print('GitHub: sebas')
+print('Version: 1.0')
+print('Status: In Development')
+print('=' * 45)
 
-ip = input('Qual ip deseja scanear?')
+ip = input('Enter the IP address to scan: ')
+
 for porta in range(1, total_portas + 1):
     cliente = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     cliente.settimeout(0.5)
@@ -41,21 +56,23 @@ for porta in range(1, total_portas + 1):
     resultado = cliente.connect_ex((ip, porta))
 
     if resultado == 0:
-        portas_abertas.append(porta) 
+        portas_abertas.append(porta)
         informacoes = processos.get(porta)
 
         try:
             servico = socket.getservbyport(porta, "tcp")
         except OSError:
-            servico = "Desconhecido"
+            servico = "Unknown"
 
         portasta[porta] = servico
-        print(f"[ABERTA] Porta {porta} | Serviço: {servico}")
+        print(f"[OPEN] Port {porta} | Service: {servico}")
+
         if informacoes:
-            print(f"Processo: {informacoes['processo']}")
+            print(f"Process: {informacoes['processo']}")
             print(f"PID: {informacoes['pid']}")
         else:
-            print("Processo: Não identificado")
+            print("Process: Not identified")
+
     cliente.close()
     portas_analisadas += 1
     percentagem = portas_analisadas / total_portas * 100
@@ -64,14 +81,17 @@ for porta in range(1, total_portas + 1):
 
     barra = "█" * preenchidos + "-" * vazios
 
-    print(f"\rProgresso: [{barra}] {percentagem:.2f}%", end="", flush=True)
-print("\nScan concluído.")
+    print(f"\rProgress: [{barra}] {percentagem:.2f}%", end="", flush=True)
+
+print("\nScan completed.")
 print('=' * 30)
-print('RESULTADO DO SCAN')
+print('SCAN RESULTS')
+
 if portasta:
     for porta, dados in sorted(portasta.items()):
-        print(f'Porta {porta}: Servico {dados}')
+        print(f'Port {porta}: Service {dados}')
 else:
-    print('Nenhuma porta aberta encontrada.')
-print(f'Total: {len(portas_abertas)} portas abertas.')
-print(f'Portas analisadas: {portas_analisadas}')
+    print('No open ports found.')
+
+print(f'Total: {len(portas_abertas)} open ports.')
+print(f'Ports scanned: {portas_analisadas}')
