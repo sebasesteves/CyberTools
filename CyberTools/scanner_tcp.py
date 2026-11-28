@@ -6,92 +6,123 @@
 # Status: In Development
 # ==========================================
 
+import datetime
+import ipaddress
+import json
+from pathlib import Path
 import socket
 import subprocess
 
-lserv = dict()
-portasta = dict()
-portas_abertas = list()
-total_portas = 65535
-portas_analisadas = 0
-tamanho_barra = 20
+HISTORY_FILE = Path(__file__).with_name('historico.json')
+TOTAL_PORTS = 65535
 
-def identificar_processos():
-    resultado = subprocess.run(
-        ["ss", "-tlnp"],
-        capture_output=True,
-        text=True
-    )
-    for linha in resultado.stdout.splitlines()[1:]:
-        partes = linha.split()
 
-        if len(partes) >= 4:
-            endereco = partes[3]
-            porta = endereco.rsplit(":", 1)[-1]
-            if 'users:(("' in linha and "pid=" in linha:
-                processo = linha.split('(("')[1].split('"')[0]
-                pid = linha.split("pid=")[1].split(",")[0]
+def load_history():
+    if not HISTORY_FILE.exists():
+        return []
+    with HISTORY_FILE.open('r', encoding='utf-8') as file:
+        history = json.load(file)
+    if not isinstance(history, list):
+        raise ValueError('History must contain a list.')
+    return history
 
-                lserv[int(porta)] = {"processo": processo, "pid": int(pid)}
-    return lserv
 
-processos = identificar_processos()
+def save_scan(scan):
+    history = load_history()
+    history.append(scan)
+    temporary = HISTORY_FILE.with_suffix('.tmp')
+    with temporary.open('w', encoding='utf-8') as file:
+        json.dump(history, file, indent=4, ensure_ascii=False)
+    temporary.replace(HISTORY_FILE)
 
-print('=' * 45)
-print('           CYBERTOOLS')
-print('          TCP PORT SCANNER')
-print('=' * 45)
-print('Developed by: Sebastião Esteves')
-print('GitHub: sebas')
-print('Version: 1.0')
-print('Status: In Development')
-print('=' * 45)
 
-ip = input('Enter the IP address to scan: ')
+def identify_processes():
+    processes = {}
+    try:
+        result = subprocess.run(['ss', '-tlnp'], capture_output=True, text=True, check=True)
+    except (OSError, subprocess.SubprocessError):
+        return processes
+    for line in result.stdout.splitlines()[1:]:
+        parts = line.split()
+        if len(parts) >= 4 and 'users:(("' in line and 'pid=' in line:
+            try:
+                port = int(parts[3].rsplit(':', 1)[-1])
+                name = line.split('(("', 1)[1].split('"', 1)[0]
+                pid = int(line.split('pid=', 1)[1].split(',', 1)[0].split(')', 1)[0])
+                processes[port] = {'process': name, 'pid': pid}
+            except (ValueError, IndexError):
+                continue
+    return processes
 
-for porta in range(1, total_portas + 1):
-    cliente = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    cliente.settimeout(0.5)
 
-    resultado = cliente.connect_ex((ip, porta))
+def scan():
+    target = input('Local IPv4 address [127.0.0.1]: ').strip() or '127.0.0.1'
+    try:
+        address = ipaddress.IPv4Address(target)
+    except ValueError:
+        print('Invalid IPv4 address.')
+        return
+    if not address.is_loopback:
+        print('This release supports local loopback diagnostics only.')
+        return
+    processes = identify_processes()
+    started = datetime.datetime.now().isoformat()
+    open_ports = []
+    services = {}
+    for port in range(1, TOTAL_PORTS + 1):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client:
+            client.settimeout(0.5)
+            if client.connect_ex((target, port)) == 0:
+                open_ports.append(port)
+                try:
+                    service = socket.getservbyport(port, 'tcp')
+                except OSError:
+                    service = 'Unknown'
+                services[str(port)] = service
+                print(f'\n[OPEN] {port} | {service}')
+                if port in processes:
+                    info = processes[port]
+                    print(f"Local process: {info['process']} | PID: {info['pid']}")
+        filled = port * 20 // TOTAL_PORTS
+        print(f'\rProgress: [{"#" * filled}{"-" * (20-filled)}] {port / TOTAL_PORTS:.2%}', end='', flush=True)
+    print(f'\nScan complete. Open ports: {len(open_ports)}')
+    # Keep existing history keys for compatibility with the earlier release.
+    save_scan({'data_hora': started, 'ip': target, 'portas_abertas': open_ports,
+               'total': len(open_ports), 'servico': services,
+               'portas_analisadas': TOTAL_PORTS})
+    print('Scan saved successfully.')
 
-    if resultado == 0:
-        portas_abertas.append(porta)
-        informacoes = processos.get(porta)
 
+def show_history():
+    history = load_history()
+    if not history:
+        print('No saved scans.')
+    for number, entry in enumerate(history, 1):
+        print(f'\n--- Scan {number} ---')
+        for key, label in [('data_hora', 'Date'), ('ip', 'IP'), ('portas_abertas', 'Open ports'),
+                           ('total', 'Total'), ('servico', 'Services'), ('portas_analisadas', 'Ports checked')]:
+            print(f'{label}: {entry.get(key, "Unknown")}')
+
+
+def main():
+    print('=== CyberTool ===')
+    while True:
+        print('\n0. Exit\n1. Local TCP scan\n2. View history')
+        option = input('Choose an option: ').strip()
         try:
-            servico = socket.getservbyport(porta, "tcp")
-        except OSError:
-            servico = "Unknown"
+            if option == '0':
+                return
+            if option == '1':
+                scan()
+            elif option == '2':
+                show_history()
+            else:
+                print('Invalid option.')
+        except (OSError, ValueError, AttributeError) as error:
+            print(f'Error: {error}')
+        except KeyboardInterrupt:
+            print('\nOperation cancelled.')
 
-        portasta[porta] = servico
-        print(f"[OPEN] Port {porta} | Service: {servico}")
 
-        if informacoes:
-            print(f"Process: {informacoes['processo']}")
-            print(f"PID: {informacoes['pid']}")
-        else:
-            print("Process: Not identified")
-
-    cliente.close()
-    portas_analisadas += 1
-    percentagem = portas_analisadas / total_portas * 100
-    preenchidos = int(portas_analisadas / total_portas * tamanho_barra)
-    vazios = tamanho_barra - preenchidos
-
-    barra = "█" * preenchidos + "-" * vazios
-
-    print(f"\rProgress: [{barra}] {percentagem:.2f}%", end="", flush=True)
-
-print("\nScan completed.")
-print('=' * 30)
-print('SCAN RESULTS')
-
-if portasta:
-    for porta, dados in sorted(portasta.items()):
-        print(f'Port {porta}: Service {dados}')
-else:
-    print('No open ports found.')
-
-print(f'Total: {len(portas_abertas)} open ports.')
-print(f'Ports scanned: {portas_analisadas}')
+if __name__ == '__main__':
+    main()
